@@ -1,0 +1,239 @@
+---
+title: 'Visualisation Assignment Portfolio 3'
+author: 'Amanda Gulstad Pedersen'
+date: '26-05-2025'
+output: html_document
+---
+
+I am, for the most part, following the coding from "Sentiment Analysis IPCC".
+
+### Loading libraries needed
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+
+library(tidyverse)
+library(here)
+
+library(pdftools)
+library(tidytext)
+library(textdata) 
+library(ggwordcloud)
+```
+
+
+### Loading the pdf
+
+```{r get-document}
+got_text <- pdf_text(here("data", "got.pdf"))
+```
+
+
+### Some wrangling:
+
+```{r split-lines}
+got_df <- data.frame(got_text) %>% 
+  mutate(text_full = str_split(got_text, pattern = '\n')) %>% 
+  unnest(text_full) %>% 
+  mutate(text_full = str_trim(text_full)) 
+
+```
+
+
+### Get the tokens in tidy format
+Changing the format from a whole sentence pr column to individual words in each column.
+
+```{r tokenize}
+got_tokens <- got_df %>% 
+  unnest_tokens(word, text_full)
+
+```
+
+Checking word count for the volume arranged in descending order:
+```{r count-words}
+got_wc <- got_tokens %>% 
+  count(word) %>% 
+  arrange(-n)
+got_wc
+```
+
+
+### Removing stop words
+
+Using the function anti_join to remove the stop words. The stop word list used here is a part of the tidytext package, containing fillerwords from the english language.
+```{r stopwords}
+got_stop <- got_tokens %>% 
+  anti_join(stop_words) %>% 
+  select(-got_text)
+```
+
+Checking the wordcount once again shows completely different words at the top of our count with the removal of 531 words.
+```{r count-words2}
+got_swc <- got_stop %>% 
+  count(word) %>% 
+  arrange(-n)
+
+got_swc
+```
+
+
+After removing the numbers in the text, the wordcount is down another 86 "tokens".
+```{r skip-numbers}
+
+got_no_numeric <- got_stop %>% 
+  filter(is.na(as.numeric(word)))
+
+got_no_numeric %>% 
+  count(word) %>% 
+  arrange(-n)
+```
+
+### A word cloud for Game of Thrones
+
+For the word cloud we are using the 100 most frequent words by first creating a new object for the words, then creating the cloud.
+```{r wordcloud-prep}
+got_top100 <- got_no_numeric %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(100)
+got_top100
+```
+
+```{r wordcloud}
+got_cloud <- ggplot(data = got_top100, aes(label = word, size = n, color = n)) +
+  geom_text_wordcloud(shape = "diamond") +
+  scale_size_area(max_size = 10) +
+  scale_color_gradient(high ="#32CD32", low = "#023020")
+  theme_bw()
+
+got_cloud
+```
+A wordcloud is a useful tool, as it shows a (superficial) visual snapshot of a texts themes. This wordcloud shows that many of the most frequent words ("lord", "ser", "king") are related to power-relations, which is in line with central themes found in the book.
+
+
+### Sentiment analysis of A Game of Thrones
+
+
+Loading the tree lexicons "afinn", "nrc", and "bing":
+```{r}
+get_sentiments(lexicon = "afinn")
+get_sentiments(lexicon = "bing")
+get_sentiments(lexicon = "nrc")
+
+```
+
+
+
+
+### Sentiment analysis with afinn: 
+
+Using the function inner_join to combine the words from the AFINN lexicon with the GoT manuscript. The inner_join function only keeps the words that appear in BOTH, and everything else if excluded.
+```{r bind-afinn}
+got_afinn <- got_stop %>% 
+  inner_join(get_sentiments("afinn"))
+got_afinn
+```
+
+The AFINN lexicon uses a scoring system rankring from -5 to +5. A visualisation can show the overall score of the manuscript, which is mostly negative accoring to AFINNs standarts.
+```{r count-afinn}
+got_afinn_hist <- got_afinn %>% 
+  count(value)
+
+ggplot(data = got_afinn_hist, aes(x = value, y = n)) +
+  geom_col(aes(fill = value)) +
+  theme_bw()
+```
+
+## Investigate some of the words in a bit more depth:
+Investigating the words with a +4 score by first creating an object only including these +4-words, then plotting them using ggplot.
+
+```{r}
+got_afinn4 <- got_afinn %>% 
+  filter(value == 4)
+
+```
+
+```{r afinn}
+
+got_afinn4_n <- got_afinn4 %>% 
+  count(word, sort = TRUE) %>% 
+  mutate(word = fct_reorder(factor(word), n))
+
+
+pos_words <- ggplot(data = got_afinn4_n, aes(x = word, y = n, fill = word)) +
+  geom_col() +
+  coord_flip() +
+  theme_bw()
+
+pos_words
+
+ggsave(plot = pos_words, here("figures", "four_pos_words_GoT.png"), height = 8, width = 5)
+
+```
+The most frequent one is win, which appears almost 30 times, and hereafter other forms of winning, triumph, and so on.
+This could suggest that a central theme in the book is, as the title suggests, the struggle for power.
+
+
+### Using the NRC lexicon for sentiment analysis
+
+Using inner_join to combine the text with the NRC lexicon as above, where only words existing in both the text and the lexicon will stay.
+
+```{r}
+got_nrc <- got_stop %>% 
+  inner_join(get_sentiments("nrc"))
+```
+
+By using anti_join() we can see which words wont be in the analysis. A lot of the words that are most frequent, such as "Ser" and characternames, has been removed.
+
+```{r}
+got_exclude <- got_stop %>% 
+  anti_join(get_sentiments("nrc"))
+
+got_exclude_n <- got_exclude %>% 
+  count(word, sort = TRUE)
+
+head(got_exclude_n)
+```
+
+
+##visualisations using NRC lexicon
+
+```{r}
+got_nrc_n <- got_nrc %>% 
+  count(sentiment, sort = TRUE)
+
+ggplot(data = got_nrc_n, aes(x = sentiment, y = n)) +
+  geom_col(aes(fill = sentiment))+
+  theme_bw()
+```
+Unlike the previous visualisation using AFINN, this one shows the book to be overall slightly more positive. To investigate further it's possible to see which words are counted for each emotion:
+
+```{r}
+got_nrc_n5 <- got_nrc %>% 
+  count(word,sentiment, sort = TRUE) %>% 
+  group_by(sentiment) %>% 
+  top_n(5) %>% 
+  ungroup()
+
+got_nrc_gg <- ggplot(data = got_nrc_n5, aes(x = reorder(word,n), y = n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, ncol = 2, scales = "free") +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Word", y = "Count", title = "Sentiment Analysis of the Game of Thrones ")
+
+got_nrc_gg
+
+ggsave(plot = got_nrc_gg, 
+       here("figures","got_nrc_sentiment.png"), 
+       height = 8, 
+       width = 5)
+
+```
+See portfolio for more on this graph.
+
+
+### Credits: 
+I am closely following the "SentimentAnalysisIPCC"-tutorial.
