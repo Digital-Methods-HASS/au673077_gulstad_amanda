@@ -1,0 +1,230 @@
+---
+title: "Covid-19 handling"
+author: "Amanda Gulstad Pedersen"
+date: "2025-05-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## Covid-19 Handling and Discourse
+
+```{r libraries}
+#loading libraries
+
+library(tidyverse)
+library(here)
+
+library(pdftools)
+library(tidytext)
+library(textdata)
+
+```
+
+### Fig. 1: Infection numbers
+
+```{r graph for marts og april}
+smittetalMA <- read_csv2("Data/smittetalMartsApril.csv", na = c("NA"))
+
+smittetalMA_clean <- smittetalMA %>% 
+  mutate(date = dmy(date))
+
+smittetalMA_vis <- smittetalMA_clean %>% 
+  ggplot() +
+  geom_smooth(aes(x = date, y = infected_all, colour = "Infected")) +
+  theme_bw()+
+  geom_smooth(aes(x = date, y = mortality_all, colour = "Mortality")) +
+  geom_point(aes(x = date, y = press_conferences, colour = "Press Conference"), size = 3) +
+  labs(title = "From Marts 12th to April 14th 2020", x = "Date", y = "Number (cumulative)") +
+  scale_colour_manual(name = "Explanation", values = c("Infected" = "orange", "Mortality" = "red", "Press Conference" = "black"))+
+  theme(legend.position = "top")
+
+smittetalMA_vis
+ggsave(plot = smittetalMA_vis, here("Visuals", "SmittetalMartsApril.png"))
+
+```
+
+
+
+
+### Stopwordlist
+
+```{r creating a stopwordlist}
+stopord <- pdf_text(here("Data", "stopord.pdf"))
+stopord <- data.frame(stopord) %>% 
+  mutate(indhold = str_split(stopord, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold = str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold)
+```
+
+
+### PRESS CONFERENCES 11th of march through 14th of april
+
+```{r creating objects for all press conference}
+pm1103 <- pdf_text(here("Data", "pressemøde_11_03_2020.pdf"))
+
+pm1103 <- data.frame(pm1103) %>% 
+  mutate(indhold = str_split(pm1103, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm1103) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("17.05.2025", "gerne", "sagt", "11.03.2020", "forhold", "statsministeren", "spørger", "hvis", "morgen"))
+
+
+pm1303 <- pdf_text(here("Data", "pressemøde_13_03_2020.pdf"))
+
+pm1303 <- data.frame(pm1303) %>% 
+  mutate(indhold = str_split(pm1303, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm1303) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "21.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "hvis"))
+
+pm1503 <- pdf_text(here("Data", "pressemøde_15_03_2020.pdf"))
+
+pm1503 <- data.frame(pm1503) %>% 
+  mutate(indhold = str_split(pm1503, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm1503) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "22.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "15.03.2020", "hvis"))
+
+pm1703 <- pdf_text(here("Data", "pressemøde_17_03_2020.pdf"))
+
+pm1703 <- data.frame(pm1703) %>% 
+  mutate(indhold = str_split(pm1703, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm1703) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "22.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "hvis", "tager", "betyder"))
+
+pm2303 <- pdf_text(here("Data", "pressemøde_23_03_2020.pdf"))
+
+pm2303 <- data.frame(pm2303) %>% 
+  mutate(indhold = str_split(pm2303, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm2303) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "22.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "brug", "hvis", "muligt"))
+
+pm3003 <- pdf_text(here("Data", "pressemøde_30_03_2020.pdf"))
+
+pm3003 <- data.frame(pm3003) %>% 
+  mutate(indhold = str_split(pm3003, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm3003) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "22.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "hvis", "første", "videre"))
+
+pm0604 <- pdf_text(here("Data", "pressemøde_06_04_2020.pdf"))
+
+pm0604 <- data.frame(pm0604) %>% 
+  mutate(indhold = str_split(pm0604, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm0604) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "22.05.2025", "spørger", "spørgsmål", "forhold", "gerne", "sagt", "hvis", "kåre", "mølbak", "vigtigt"))
+
+pm1404 <- pdf_text(here("Data", "pressemøde_14_04_2020.pdf"))
+
+pm1404 <- data.frame(pm1404) %>% 
+  mutate(indhold = str_split(pm1404, pattern = '\n')) %>% 
+  unnest(indhold) %>% 
+  mutate(indhold =str_trim(indhold)) %>% 
+  unnest_tokens(word, indhold) %>% 
+  anti_join(stopord) %>% 
+  select(-pm1404) %>% 
+  filter(is.na(as.numeric(word))) %>% 
+  filter(!word %in% c("statsministeren", "17.05.2025", "spørger", "spørgsmål", "21.05.2025", "første", "here", "forhold", "set", "videre", "holde", "hvis", "gerne", "faktisk", "måde", "stadigvæk", "vigtigt", "videre"))
+
+```
+
+
+```{r combining all into one object}
+
+all_combined <- bind_rows(pm1103, pm1303, pm1503, pm1703, pm2303, pm3003, pm0604, pm1404)
+
+```
+
+### Fig. 2
+```{r visual for the combined press conferences}
+
+arr_all <- all_combined %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(20)
+
+all_vis <- ggplot(data = arr_all, aes(x = word, y = n, fill = n))+
+  geom_col() +
+  coord_flip()+
+  theme_light() +
+  labs(title = "20 most frequent words in ALL press conferences", x = "Word", y = "Frequency")
+
+all_vis
+ggsave(plot = all_vis, here("Visuals", "CombinedVisual.png"))
+
+```
+
+### Fig. 3:
+```{r visual for nationality, community and unity focused words}
+
+community <- all_combined %>% 
+  filter(str_detect(word, "samfund|fælles|sammen|hinanden|dansk")) %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(15)
+
+community_vis <- ggplot(data = community, aes(x = word, y = n, fill = n))+
+  geom_col() +
+  coord_flip()+
+  theme_light() +
+  labs(title = "Instances of community-focused words in the combined press conferences", x = "Word", y = "Frequency")
+
+community_vis
+ggsave(plot = community_vis, here("Visuals", "SamfundVisual.png"))
+
+```
+
+### Fig. 4.:
+```{r visual for authorital words in the combined press conferences}
+authority <- all_combined %>% 
+  filter(str_detect(word, "virksomhed|sundhed|regering|afstand|corona|covid|situation|myndighed")) %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(15)
+
+authority_vis <- ggplot(data = authority, aes(x = word, y = n, fill = n))+
+  geom_col() +
+  coord_flip()+
+  theme_light() +
+  labs(title = "Instances of words that evokes authority in the combined press conferences", x = "Word", y = "Frequency")
+
+authority_vis
+ggsave(plot = authority_vis, here("Visuals", "AutoritetVisual.png"))
+```
